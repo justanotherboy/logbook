@@ -1,0 +1,6 @@
+- options: Multipath TCP
+- options: TCP Cookie (Fast Start)
+- connection: Explain Time-wait state
+- connection: Quiet time
+- connection: Fin-wait-2 state
+- connection: simultaneous open and close transitions
