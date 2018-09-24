@@ -33,3 +33,62 @@ The TSOPT algorithm works even in cases of reordering and retransmissions:
 - **Retransmission:** When a receiver receives a retransmitted segment the acknowledge generated includes as its TSER value the TSV of the retransmitted segment. This causes the RTT value on the sender to go down, therefore decrease its RTO.
 
 When using the TSOPT to calculate the RTT there is no need to implement the first step of the Karn's algorithm.
+
+## Methods to calculate the RTO
+
+### RFC 793 method to set the RTO
+
+The RFC 798 uses a smoothed round-trip time estimator (SRTT) to calculates the retransmission timeout:
+
+```
+SRTT = α(SRTT) + (1-α)RTTs
+```
+
+The recommended value for α is a value between 0.8 and 0.9. The newly estimated consists of 80% to 90% from the previous estimate and 10% to 20% of the new sample. This average is also called Exponentially Weighted Moving Average (EWMA). Given the SRTT the recommended RTO is set to the following:
+
+```
+RTO = min(ubound, max(lbound, β(SRTT))
+```
+
+β is a delayed variance factor recommended between 1.3 to 2.0. ubond is the upper bound (suggested to 60 seconds), and lbound is the lower bound (recommended to 1 second). For a stable RTT this method works fine, but not for networks with highly variable RTT such as wireless networks.
+
+### RFC 6298 method to calculate the RTO
+
+For networks with high variability on the Round-Trip Time, it is possible to track an estimate of the RTT variability (RTTVAR) for a better calculation of the RTO. The mean deviation is a good enough standard deviation approximation and it is faster to calculate (because mean deviation doesn't require square root). The calculations are as follows:
+
+```
+SRTT = (1-α) SRTT + α (RTTs)
+RTTVAR = (1 - β) RTTVAR + β * | SRTT - RTTs |
+RTO = max(SRTT + max(G, 4 * RTTVAR), 1000)
+
+α = 1/4
+β = 1/8
+G = Clock granularity
+```
+
+This method uses a smoothed SRTT and RTTVAR which varies over time. For TCP timer based retransmissions this algorithm or another less aggressive must be implemented as stated by the RFC 6298. Please note most TCP implementations doesn't set the RTO floor to one second.
+
+#### Initial Values
+
+There is no information to set the RTO before initiating the connection (unless there is cached information in the system). Per the RFC 6298, the initial value for the RTO should be 1 second, 3 seconds when the first SYN is retransmitted. The endpoint set the following values once it receives the first data:
+
+```
+SRTT = RTTs
+RTTVAR = RTTs/2
+```
+
+### Linux method to calculate the RTO
+
+Linux uses a clock granularity of 1 millisecond and uses TSOPT for RTO calculation. Such small granularity and constant RTT measures, make the RTO calculations more accurate; however, the RTTVAR tends to be minimized over the time. Changes in the last RTT sample would increase the RTTVAR even when the RTT decreases. Linux keeps four variables to deal with cases of high variability between RTT samples: SRTT, RTTVAR, MDEV, MDEV_MAX.  MDEV_MAX is the maximum MDEV seen in the last measured RTT  and can't be less than 50 ms. In case the new RTT sample is less than the current smoothed RTT Linux give less weight to the last estimation.
+
+```
+MDEV = (1 - β) RTTVAR + β * | SRTT - RTTs |
+MDEV_MAX = max(50ms, max(MDEV_MAX, MDEV))
+RTTVAR = MDEV_MAX
+SRTT = (1-α) SRTT + α (RTTs)
+RTO = SRTT + 4*RTTVAR
+
+α = 1/4 if (RTTs < (SRTT - MDEV))
+α = 1/8 if (RTTs > (SRTT - MDEV))
+β = 1/8
+```
