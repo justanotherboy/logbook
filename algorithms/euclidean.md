@@ -9,7 +9,7 @@ For two given numbers x, y, take the larger number and subtract the other
 number. Repeat this process until both numbers are equal, this number is the
 GCD of both numbers.
 
-#### Example, get the GCD of 98 and 196
+#### Example, get the GCD of 112 and 196
 
 ```
 112  196      (196 - 112)  
@@ -25,7 +25,7 @@ For two given numbers x, y, take the larger number and divide it by the smaller
 number and keep its remainder. Repeat this process until one of the numbers is
 zero. The GCD will be the non-zero number.
 
-#### Example, get the GCD of 98 and 196
+#### Example, get the GCD of 112 and 196
 
 ```
 112  196      (196 % 112)  
