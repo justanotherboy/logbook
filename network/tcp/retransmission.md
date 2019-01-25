@@ -116,3 +116,48 @@ The receiver places in the first SACK block the sequence number range contained 
 ### SACK Sender Behavior
 
 The sender must perform selective retransmission by only sending those segments missing at the receiver. When a SACK-capable sender performs a retransmission, it has the choice of whether it sends new data or retransmits old data. The simplest approach is to have the sender first fill the hole and then move on to send more new data if the congestion control procedures allow. This is the most common approach.
+
+## Spurious Timeouts and Retransmissions
+
+TCP may initiate a retransmission even when no data has been lost. Such undesirable retransmissions are called spurious retransmissions and are caused by timeouts firing too early, packet reordering, packet duplication, or lost ACKs. Spurious timeouts can occur when the RTT has increased beyond the RTO. This happens more frequently on environments with networks that have widely varying performance (e.g., wireless).
+
+There are detection and response algorithms to deal with spurious timeouts. The detection algorithm attempts to determine when a timeout was spurious. The response algorithm is invoked whether a timeout was spurious.
+
+### Duplicate SACK (DSACK)
+
+The change to the SACK option is to allow a SACK block to be included even if it covers sequence numbers below the cumulative ACK. The DSACK is interoperable with conventional SACK senders, that causes the first SACK block to indicate the sequence numbers of a duplicate segment. The main purpose of DSACK is to determine when a retransmission was not necessary.
+
+### Eifel Detection Algorithm
+
+This algorithm uses TSOPT to detect spurious retransmissions. When a retransmission is sent, the TSV value is stored. When the first acceptable ACK covering its sequence number is received, the incoming ACK's TSER is examined. If it is smaller than the stored value, the ACK corresponds to the original transmission and not for the retransmitted packet. This approach is robust to ACK loss as well. If an ACK is lost, any subsequent ACKs still have TSER values less than the stored TSV of the retransmitted segment. This algorithm is able to detect spurious retransmissions earlier than only using DSACK because it relies on ACKs generated as a result of packets arriving before loss recovery is initiated.
+
+### Forward-RTO Recovery (F-RTO)
+
+This algorithm doesn't require any TCP options and is implemented in the sender. It attempts to detect only spurious retransmissions caused by the expiration of the retransmission timer.
+
+F-RTO modifies the ordinary behavior of TCP by having TCP send new data after the timeout-based retransmission when the first ACK arrives. If either of the first two ACKs arriving after the retransmission sent are duplicate, the transmission is deemed OK. If they are both acceptable ACKs that advance the sender's window, the retransmission is deemed to have been spurious.
+
+### The Eifel Response Algorithm
+
+This algorithm can be used with any detection algorithm. The algorithm behaves differently based if a spurious timeout was detected early (Eifel or F-RTO) or later (DSACK). The latter are called late spurious timeouts.
+
+The algorithm operates on the first retransmission timer event only. After the retransmission timer expires, it takes a snapshot of the values srtt and rttvar.
+
+```
+srtt_prev = srtt + 2(G)
+rttvar_prev = rttvar
+
+G = clock granularity
+```
+
+If a spurious retransmission is detected the algorithm adjusts the next segment about to be sent to the first unsent segment to avoid the go-back-N behavior. For late spurious timeout, an ACK for the initial retransmission has already taken place so there is no change to the segments to be sent. In both cases, the congestion control state is reset and the timers are updated as follows:
+
+```
+srtt = max(srrt_prev, m)
+rttvar = max(rttvar_prev, m/2)
+RTO = srrt + max(G, 4(rttvar))
+
+m = RTT of the first acceptable ACK after the timeout.
+```
+
+These modifications are because the RTT may have changed significantly that the RTT history is no longer valid to set the RTO.
