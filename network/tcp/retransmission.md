@@ -92,3 +92,27 @@ RTO = SRTT + 4*RTTVAR
 α = 1/8 if (RTTs > (SRTT - MDEV))
 β = 1/8
 ```
+
+## Timer-based retransmission
+
+Once TCP has established the RTO based upon measurements of RTT, whenever TCP sends a segment it also set the retransmission timer. When the endpoint receives the acknowledgment on-time for a packet, TCP cancels the retransmission timer. When TCP fails to receive an acknowledgment within the RTO, TCP performs timer-based retransmission. When there is a retransmission the sender will reduce the sending window accordingly to its congestion control algorithm and will start with the 2nd step of the Karn's algorithm; the RTO is temporarily multiplied by a backoff value when multiple retransmissions occur for the same segment.
+
+## Fast retransmit
+
+Fast retransmit can trigger packet retransmission without waiting for the retransmission timer to expire. Usually, this method is more efficient and faster than timer-based retransmissions. When an out-of-order segment is received, the endpoint will generate an immediate acknowledgment (a duplicate ACK) and the sender's needs to fill the hole at the receiver as quickly and efficiently as possible.
+
+A duplicated acknowledgment at the sender is an indicator packet was lost or delayed. Because it is not possible to know which one, the sender waits for a small number of duplicate ACKs before initiating a fast retransmit. Some implementations wait for a small number of duplicated acknowledgment (usually 3) while others base the number on the current level of reordering. Packet loss is inferred because of duplicate ACKs and congestion control measures are invoked too.
+
+## Retransmission with Selective Acknowledgments
+
+With the SACK option, the receiver is able to signal data that has been received beyond the cumulative ACK. Not contiguous data are called out-of-sequence data and there are holes between contiguous and non-contiguous data.
+
+The sender needs to fill the holes by retransmitting any data the receiver is missing without sending duplicate data. A SACK capable receiver can include up to four holes of data (three if using TSOPT). The sender is able to fill these holes more quickly than a non-SACK sender.
+
+### SACK Receiver Behavior
+
+The receiver places in the first SACK block the sequence number range contained in the segment it has most recently received to provide the most recent information to the sender. Other SACK blocks are listed in the order in which they appeared as first blocks in the previous SACK options to provide some redundancy in the case where SACKs are lost.
+
+### SACK Sender Behavior
+
+The sender must perform selective retransmission by only sending those segments missing at the receiver. When a SACK-capable sender performs a retransmission, it has the choice of whether it sends new data or retransmits old data. The simplest approach is to have the sender first fill the hole and then move on to send more new data if the congestion control procedures allow. This is the most common approach.
