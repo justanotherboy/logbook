@@ -161,3 +161,23 @@ m = RTT of the first acceptable ACK after the timeout.
 ```
 
 These modifications are because the RTT may have changed significantly that the RTT history is no longer valid to set the RTO.
+
+## Reordering
+
+IP doesn't guarantee that relative ordering between packets is maintained during delivery. Reordering may take place in the forward or the reverse path of a TCP connection (or both).
+
+If reordering takes place in the reverse (ACK) direction, it causes the sending TCP to receive some ACKs that move the window significantly forward followed by redundant ACKs that are discarded. This lead to unwanted burstiness and trouble in taking advantage of available network bandwidth, because of TCP's congestion control.
+
+If reordering occurs in the forward direction, TCP may have trouble distinguishing this condition from loss. When reordering is moderate, the situation can handle quickly. When reordering is more severe, TCP can be tricked into believing that data has been lost. This can result in spurious retransmissions, primarily from the fast retransmit algorithm.
+
+## Duplication
+
+IP may deliver a single packet more than one time. This can happen when the link-layer creates copies of the same packet. A duplicated packet produces ACKs from the receiver that might trigger a spurious fast retransmit. With DSACK the duplicate ACKs contain information that the segment has already been received. TCP can often suppress spurious retransmission in such cases.
+
+## Destination Metrics
+
+TCP learns about the characteristics of the network path between the sender and the receiver over time. Some TCP implementations also keep track of an estimate of the amount of packet reordering. Historically, this learning is lost once the connection is closed. Newer TCP implementations maintain many of the metrics even after the TCP connections are closed.
+
+## Repacketization
+
+When TCP times out and retransmits, it does not have to retransmit the identical segment. Instead, TCP is allowed to perform repacketization, sending a bigger segment, which can increase performance. Retransmitting a segment with a different size from the original segment provides another way of addressing the retransmission ambiguity problem.
