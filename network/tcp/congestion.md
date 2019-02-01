@@ -48,3 +48,25 @@ cwndₜ₊₁ = cwndₜ + SMSS * SMSS/cwndₜ
 ```
 
 Congestion avoidance grows the window linearly (also called additive increase), whereas slow start grows it exponentially.
+
+### Selecting between Slow Start and Congestion Avoidance
+
+A TCP connection is always running either the slow start or the congestion avoidance procedure, but never the two simultaneously. The ssthresh is a limit on the value of cwnd that determines which algorithm is in operation. When cwnd < ssthresh, slow start is used, and when cwnd > ssthresh, congestion avoidance is used. The value of ssthresh is not fixed but instead varies over time. It remembers the last "best" estimate of the operating window when no loss was present. The initial value of ssthresh may be set arbitrarily high. When a retransmission occurs, caused by a retransmission timeout or fast retransmit, ssthresh is updated as follows:
+
+```
+ssthresh = max(flight size/2, 2(SMS))
+```
+
+TCP assumes that the operating window must have been too large for the network to handle. Reducing the estimate of the optimal window size is accompanied by altering ssthresh to be about half of what the current window size is. This usually results in lowering ssthresh, but it can also result in increasing ssthresh.
+
+## Tahoe
+
+The slow start and congestion avoidance, constitute the first congestion control algorithms applied to TCP. They were introduced in the 4.2 release of BSD (called Tahoe). The release included a version of TCP that started connections in slow start, and if a packet was lost, detected by either a timeout or the fast retransmit, the slow start algorithm was reinitiated. Tahoe reduced the cwnd to its starting value (1 SMSS) upon any loss, forcing the connection to slow start until cwnd grew to the ssthresh value.
+
+## Reno
+
+One problem setting the cwnd value to 1 is that for large BDP paths, the connection significantly underutilizes the available bandwidth while the sending TCP goes through slow start. To address this problem, the reinitiation of slow start on any packet loss was reconsidered. If a packet loss is detected by duplicate ACKs, cwnd is instead reset to the last value of ssthresh instead of 1 SMSS and enters in the fast recovery phase. This approach allows the TCP to slow down to half its previous rate without reverting to slow start. TCP Reno became very popular and ultimately the basis for what might be called "standard TCP"
+
+### Fast recovery
+
+Fast recovery allows cwnd to temporarily grow by 1 SMSS for each ACK received while recovering. Any nonduplicate ACK causes TCP to exit recovery and reduces the congestion window back to its pre-inflated value.
